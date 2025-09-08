@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { initializeApp } from 'firebase/app';
+import { firebaseConfig as defaultFirebaseConfig } from './firebaseConfig';
 import { getFirestore, collection, onSnapshot, doc, setDoc, query } from 'firebase/firestore';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
 
@@ -216,8 +217,14 @@ export default function App() {
 
     useEffect(() => {
         try {
-            const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
-            if (!firebaseConfig) { console.error("Firebase config not found."); setIsLoading(false); return; }
+            const firebaseConfig = typeof __firebase_config !== 'undefined'
+                ? JSON.parse(__firebase_config)
+                : defaultFirebaseConfig;
+            if (!firebaseConfig) {
+                console.error("Firebase config not found.");
+                setIsLoading(false);
+                return;
+            }
             const app = initializeApp(firebaseConfig);
             const firestoreDb = getFirestore(app);
             const firebaseAuth = getAuth(app);
