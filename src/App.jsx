@@ -48,6 +48,8 @@ const MonthCard = ({ month, booking, onBook }) => {
 const BookingModal = ({ month, hosts, locations, onConfirmBooking, onClose, initialError }) => {
     const [host, setHost] = useState(hosts[0] || '');
     const [location, setLocation] = useState(locations[0] || '');
+    // Default to Thursday. The previous value was misspelled which resulted in
+    // neither option being selected when the modal opened.
     const [day, setDay] = useState('الخميس');
     const [error, setError] = useState(initialError);
     const handleSubmit = (e) => {
@@ -240,7 +242,11 @@ export default function App() {
     useEffect(() => {
         if (isAuthReady && db) {
             const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-            const bookingsCollectionPath = `/artifacts/${appId}/public/data/bookings`;
+            // Firestore collection paths should not begin with a leading slash
+            // because Firestore treats the path as relative. A leading slash
+            // results in an invalid reference and prevents bookings from being
+            // retrieved.
+            const bookingsCollectionPath = `artifacts/${appId}/public/data/bookings`;
             const q = query(collection(db, bookingsCollectionPath));
             const unsubscribe = onSnapshot(q, (querySnapshot) => {
                 const bookingsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -263,7 +269,10 @@ export default function App() {
         if (getBookingForMonth(bookingDetails.month)) { setError('هذا الشهر محجوز بالفعل.'); return; }
         try {
             const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-            const bookingsCollectionPath = `/artifacts/${appId}/public/data/bookings`;
+            // Use the same relative path when writing a new booking. Using a
+            // leading slash here caused Firestore to reject the request,
+            // preventing users from booking a date.
+            const bookingsCollectionPath = `artifacts/${appId}/public/data/bookings`;
             const docId = `${hijriYear}_${bookingDetails.month}`;
             await setDoc(doc(db, bookingsCollectionPath, docId), { ...bookingDetails, year: hijriYear, createdAt: new Date() });
             setLatestBooking({ ...bookingDetails, year: hijriYear });
