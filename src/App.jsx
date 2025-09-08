@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, onSnapshot, doc, setDoc, query } from 'firebase/firestore';
-import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
+import { collection, onSnapshot, doc, setDoc, query } from 'firebase/firestore';
+import { signInAnonymously, onAuthStateChanged } from 'firebase/auth';
+import { db, auth } from './firebase';
 
 // --- أيقونات SVG ---
 const UserIcon = () => (
@@ -199,7 +199,6 @@ const GeminiSuccessModal = ({ booking, onClose }) => {
 
 // --- المكون الرئيسي للتطبيق (Main App Component) ---
 export default function App() {
-    const [db, setDb] = useState(null);
     const [isAuthReady, setIsAuthReady] = useState(false);
     const [bookings, setBookings] = useState([]);
     const [showModal, setShowModal] = useState(false);
@@ -215,32 +214,21 @@ export default function App() {
     const hijriMonths = useMemo(() => [{ name: 'ربيع الثاني', index: 4 },{ name: 'جمادى الأولى', index: 5 },{ name: 'جمادى الآخرة', index: 6 },{ name: 'رجب', index: 7 },{ name: 'شعبان', index: 8 },{ name: 'شوال', index: 10 },{ name: 'ذو القعدة', index: 11 },{ name: 'ذو الحجة', index: 12 },{ name: 'محرم', index: 1 },{ name: 'صفر', index: 2 },{ name: 'ربيع الأول', index: 3 },], []);
 
     useEffect(() => {
-        try {
-            const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
-            if (!firebaseConfig) { console.error("Firebase config not found."); setIsLoading(false); return; }
-            const app = initializeApp(firebaseConfig);
-            const firestoreDb = getFirestore(app);
-            const firebaseAuth = getAuth(app);
-            setDb(firestoreDb);
-            onAuthStateChanged(firebaseAuth, async (user) => {
-                if (!user) {
-                    try {
-                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                            await signInWithCustomToken(firebaseAuth, __initial_auth_token);
-                        } else {
-                            await signInAnonymously(firebaseAuth);
-                        }
-                    } catch (authError) { console.error("Authentication error:", authError); }
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) {
+                try {
+                    await signInAnonymously(auth);
+                } catch (authError) {
+                    console.error("Authentication error:", authError);
                 }
-                setIsAuthReady(true);
-            });
-        } catch (e) { console.error("Error initializing Firebase:", e); setIsLoading(false); }
+            }
+            setIsAuthReady(true);
+        });
     }, []);
 
     useEffect(() => {
-        if (isAuthReady && db) {
-            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-            const bookingsCollectionPath = `/artifacts/${appId}/public/data/bookings`;
+        if (isAuthReady) {
+            const bookingsCollectionPath = 'bookings';
             const q = query(collection(db, bookingsCollectionPath));
             const unsubscribe = onSnapshot(q, (querySnapshot) => {
                 const bookingsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -253,7 +241,7 @@ export default function App() {
             });
             return () => unsubscribe();
         }
-    }, [isAuthReady, db]);
+    }, [isAuthReady]);
 
     const getBookingForMonth = (monthName) => bookings.find(b => b.month === monthName && b.year === hijriYear);
     const handleOpenModal = (monthName) => { setSelectedMonth(monthName); setError(''); setShowModal(true); };
@@ -262,8 +250,7 @@ export default function App() {
     const handleConfirmBooking = async (bookingDetails) => {
         if (getBookingForMonth(bookingDetails.month)) { setError('هذا الشهر محجوز بالفعل.'); return; }
         try {
-            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-            const bookingsCollectionPath = `/artifacts/${appId}/public/data/bookings`;
+            const bookingsCollectionPath = 'bookings';
             const docId = `${hijriYear}_${bookingDetails.month}`;
             await setDoc(doc(db, bookingsCollectionPath, docId), { ...bookingDetails, year: hijriYear, createdAt: new Date() });
             setLatestBooking({ ...bookingDetails, year: hijriYear });
