@@ -240,7 +240,11 @@ export default function App() {
     useEffect(() => {
         if (isAuthReady && db) {
             const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-            const bookingsCollectionPath = `/artifacts/${appId}/public/data/bookings`;
+            // Firestore collection paths should not start with a leading slash.
+            // Using a leading slash results in an invalid reference and prevents
+            // reading existing bookings. Remove the slash to construct a valid
+            // path relative to the root of the database.
+            const bookingsCollectionPath = `artifacts/${appId}/public/data/bookings`;
             const q = query(collection(db, bookingsCollectionPath));
             const unsubscribe = onSnapshot(q, (querySnapshot) => {
                 const bookingsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -263,9 +267,13 @@ export default function App() {
         if (getBookingForMonth(bookingDetails.month)) { setError('هذا الشهر محجوز بالفعل.'); return; }
         try {
             const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-            const bookingsCollectionPath = `/artifacts/${appId}/public/data/bookings`;
+            // Reuse the same Firestore path logic used when fetching bookings.
+            const bookingsCollectionPath = `artifacts/${appId}/public/data/bookings`;
             const docId = `${hijriYear}_${bookingDetails.month}`;
-            await setDoc(doc(db, bookingsCollectionPath, docId), { ...bookingDetails, year: hijriYear, createdAt: new Date() });
+            await setDoc(
+                doc(db, bookingsCollectionPath, docId),
+                { ...bookingDetails, year: hijriYear, createdAt: new Date() }
+            );
             setLatestBooking({ ...bookingDetails, year: hijriYear });
             handleCloseModal();
             setShowSuccessModal(true);
