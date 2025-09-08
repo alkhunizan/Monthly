@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { initializeApp } from 'firebase/app';
+import app from './firebase';
 import { getFirestore, collection, onSnapshot, doc, setDoc, query } from 'firebase/firestore';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
 
@@ -216,9 +216,6 @@ export default function App() {
 
     useEffect(() => {
         try {
-            const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
-            if (!firebaseConfig) { console.error("Firebase config not found."); setIsLoading(false); return; }
-            const app = initializeApp(firebaseConfig);
             const firestoreDb = getFirestore(app);
             const firebaseAuth = getAuth(app);
             setDb(firestoreDb);
@@ -240,7 +237,7 @@ export default function App() {
     useEffect(() => {
         if (isAuthReady && db) {
             const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-            const bookingsCollectionPath = `/artifacts/${appId}/public/data/bookings`;
+            const bookingsCollectionPath = `artifacts/${appId}/public/data/bookings`;
             const q = query(collection(db, bookingsCollectionPath));
             const unsubscribe = onSnapshot(q, (querySnapshot) => {
                 const bookingsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -263,7 +260,7 @@ export default function App() {
         if (getBookingForMonth(bookingDetails.month)) { setError('هذا الشهر محجوز بالفعل.'); return; }
         try {
             const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-            const bookingsCollectionPath = `/artifacts/${appId}/public/data/bookings`;
+            const bookingsCollectionPath = `artifacts/${appId}/public/data/bookings`;
             const docId = `${hijriYear}_${bookingDetails.month}`;
             await setDoc(doc(db, bookingsCollectionPath, docId), { ...bookingDetails, year: hijriYear, createdAt: new Date() });
             setLatestBooking({ ...bookingDetails, year: hijriYear });
